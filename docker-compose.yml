@@ -1,0 +1,81 @@
+version: '3'
+
+services:
+  mongo:
+    image: ayrilmaz/mongo5
+    container_name: mongo5-log
+    restart: always
+    networks:
+      - my-network
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=coder
+      - MONGO_INITDB_ROOT_PASSWORD=coder
+      - MONGO_INITDB_DATABASE=test
+    ports:
+      - 27017:27017
+    volumes:
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - mongodb:/data/db
+  postgre:
+    image: ayrilmaz/postgre14
+    container_name: postgresql-tr
+    restart: always
+    depends_on:
+      - mongo
+    networks:
+      - my-network
+    environment:
+      POSTGRES_USER: coder
+      POSTGRES_PASSWORD: 12345678
+      PGDATA: "/data/postgres"
+    volumes:
+       - postgres:/data/postgres
+       - ./create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
+    ports:
+       - "5432:5432"
+  api:
+    image: ayrilmaz/core5
+    container_name: core-api-5
+    restart: always
+    depends_on:
+      - postgre
+    networks:
+      - my-network
+    environment: 
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:13000;https://+:14000
+      - DOTNET_USE_POLLING_FILE_WATCHER=1
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=mypassword123
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+    volumes:
+      - ./api/:/app
+      - ./https/aspnetapp.pfx:/https/aspnetapp.pfx:ro
+      - ~/.vsdbg:/remote_debugger:rw
+    ports:
+      - 13000:13000
+      - 14000:14000
+    working_dir: /app
+    command: bash -c "dotnet watch run --no-launch-profile"
+  angular:
+    image: ayrilmaz/ng13
+    container_name: angular-13
+    restart: always
+    networks:
+      - my-network
+    depends_on:
+      - api
+    volumes:
+      - ./ui/:/app
+    ports:
+      - 4200:4200
+    working_dir: /app
+    command:
+      bash -c "ng serve --host 0.0.0.0 --port 4200"
+
+volumes:
+    postgres:
+    mongodb:
+
+networks:
+  my-network:
+    driver: bridge

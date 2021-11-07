@@ -1,0 +1,9 @@
+**/dist
+**/tmp
+**/out-tsc
+**/node_modules
+**/.DS_Store
+**/Thumbs.db
+**/bin
+**/obj
+
